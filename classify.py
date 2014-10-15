@@ -16,11 +16,15 @@ from sklearn.externals import joblib # 保存分类器
 from zca import ZCA # 白化处理
 from sklearn.pipeline import Pipeline
 from skimage.transform import pyramid_reduce
+import skimage.io as io
 
 from extractHoG import HoG, imread, HoG_arr
 import codebook
 import progressbar
 from osgeo import gdal
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 # big tiff
 #from osgeo import gdal
@@ -105,8 +109,43 @@ def full_check_bow(win_slide=5, win_size=1024):
             pbar.update(count+1)
             count = count + 1
     pbar.finish()
-    return result
-                
+    arr = np.ones((len(rows), len(cols)))
+    for k, v in result.items():
+        if v != 0 and v[0] == 2:
+            arr[k[0]/win_slide, k[1]/win_slide] = v[0]
+    return arr
+
+def full_check_decaf(win_slide=5, win_size=1024, blob_name='fc6_cudanet_out'):
+    from decaf.scripts.imagenet import DecafNet
+    net = DecafNet()
+    clf = joblib.load("420_decaf/classifier_decaf.pkl")
+    g_raster = gdal.Open('test.tif') # test.tif
+    # plt.axis('off')
+    # f, axarr = plt.subplots(n, n)
+    result = {}
+    cols = range(0, g_raster.RasterXSize - win_size, win_slide)
+    rows = range(0, g_raster.RasterYSize - win_size, win_slide)
+    full = len(rows) * len(cols)
+    count = 0
+    pbar = progressbar.ProgressBar(maxval=full).start()
+    for i in range(0, g_raster.RasterXSize - win_size, win_slide):
+        for j in range(0, g_raster.RasterYSize - win_size, win_slide):
+            img = get_sample(g_raster, i, j, win_size)
+            net.classify(img, True)
+            tmp = net.feature(blob_name) #与训练时候保持一致
+            result[(j,i)] = clf.predict(tmp)
+            if result[(j,i)] == 2:
+                io.imsave("420_decaf/slide_target/%s_%s_%s_%s.png" % (j, i, j+win_size, i+win_size), img)
+            pbar.update(count+1)
+            count = count + 1
+    pbar.finish()
+    
+    arr = np.ones((len(rows), len(cols)))
+    for k, v in result.items():
+        if v != 0 and v[0] == 2:
+            arr[k[0]/win_slide, k[1]/win_slide] = v[0]
+    return arr
+    
 def main():
     clf = joblib.load("classifier.pkl")
     f, axarr = plt.subplots(2, 10)
@@ -130,21 +169,24 @@ if __name__ == "__main__":
     # main()
     #random_check_hog(5)
     #random_check_bow(5)
-    result = full_check_bow(64, 256)
-    with open('result_all.txt', 'w') as f:
-        for k, v in result.items():
-            if v != 0 and v[0] == 2:
-                f.writelines("%s,%s\n"%k)
+    result = full_check_decaf(256, 512)
+    plt.imshow(result)
+    
+    
+    #with open('result_all.txt', 'w') as f:
+    #    for k, v in result.items():
+    #        if v != 0 and v[0] == 2:
+    #            f.writelines("%s,%s\n"%k)
 
-    g_raster = gdal.Open('test.tif') # test.tif
+    #g_raster = gdal.Open('test.tif') # test.tif
     # plt.axis('off')
     # f, axarr = plt.subplots(n, n)
-    win_size = 256
-    win_slide = 64
-    cols = range(0, g_raster.RasterXSize - win_size, win_slide)
-    rows = range(0, g_raster.RasterYSize - win_size, win_slide)
-    arr = np.ones((len(rows), len(cols)))
-    for k, v in result.items():
-        if v != 0 and v[0] == 2:
-            arr[k[0]/win_slide, k[1]/win_slide] = v[0]
+    #win_size = 256
+    #win_slide = 64
+    #cols = range(0, g_raster.RasterXSize - win_size, win_slide)
+    #rows = range(0, g_raster.RasterYSize - win_size, win_slide)
+    #arr = np.ones((len(rows), len(cols)))
+    #for k, v in result.items():
+    #    if v != 0 and v[0] == 2:
+    #        arr[k[0]/win_slide, k[1]/win_slide] = v[0]
       

@@ -76,15 +76,15 @@ x_train, x_test, y_train, y_test = train_test_split(X, Y,
                                    
 # CV
 # 关于ZCA 什么时候需要使用？
-zca = ZCA()
-clf = LinearSVC(loss='l2', ) #C = 10000, loss='l1', penalty='l2', random_state=42
+# zca = ZCA()
+clf = LinearSVC() #C = 10000, loss='l1', penalty='l2', random_state=42
 
-zca_svm = Pipeline([('zca',zca), ('clf',clf)])
+zca_svm = Pipeline([('clf',clf)]) #('zca',zca)
 
 parameters = {
-    'zca__bias': (0.01, 0.001, 0.0001),
-    'clf__C': (1000, 5000, 10000)
-    #'clf__loss': ('l1')
+    #'zca__bias': (0.01, 0.001, 0.0001),
+    'clf__C': (1000, 3000, 5000, 7000, 9000),
+    'clf__loss': ('l1', 'l2')
 }
 
 
@@ -107,4 +107,4 @@ if __name__ == "__main__":
     print cm
     
     print "*********************Save*******************************"
-    joblib.dump(best, "classifier_bow.pkl", compress=3)
+    joblib.dump(best, "420_decaf/classifier_decaf.pkl", compress=3)
