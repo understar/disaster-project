@@ -17,7 +17,12 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 
+#%% Train target selection
 train_hog = False
+train_bow = False
+train_decaf = True
+
+#%% Load traing data
 X = Y = None
 if train_hog: # train_hog
     X_neg = np.load("NEG_HOG.npy")
@@ -33,7 +38,7 @@ if train_hog: # train_hog
     
     X = X[index,:]
     Y = Y[index]
-else: # train_bow
+elif train_bow == True: # train_bow
     X, Y = np.load("train_BoW_x.npy"), np.load("train_BoW_y.npy")
     Y = Y.reshape(Y.shape[0])
     index = np.arange(Y.shape[0])
@@ -41,6 +46,16 @@ else: # train_bow
     
     X = X[index,:]
     Y = Y[index]
+elif train_decaf == True:
+    X, Y = np.load("420_decaf/420_decaf_X.npy"), np.load("420_decaf/420_decaf_Y.npy")
+    Y = Y.reshape(Y.shape[0])
+    index = np.arange(Y.shape[0])
+    shuffle(index)
+    
+    X = X[index,:]
+    Y = Y[index]
+
+#%% Feature visualization
 
 #PCA show
 #pca = PCA(n_components = 2)
@@ -54,10 +69,13 @@ else: # train_bow
 #
 #plt.show()
 
+#%% Prepare training and testing data
+
 x_train, x_test, y_train, y_test = train_test_split(X, Y, 
                                    test_size=0.10, random_state=42)
                                    
 # CV
+# 关于ZCA 什么时候需要使用？
 zca = ZCA()
 clf = LinearSVC(loss='l2', ) #C = 10000, loss='l1', penalty='l2', random_state=42
 
