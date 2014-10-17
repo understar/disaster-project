@@ -5,6 +5,9 @@ Created on Fri Oct 10 10:55:10 2014
 特别需要注意：
     scikit image处理的结果往往是float结果，必须得想办法转换成uint8
     主要数据类型的一致性
+    
+    比较好的python open gis软件教程
+    http://www.gis.usu.edu/~chrisg/python/2009/
 
 @author: shuaiyi
 """
@@ -119,7 +122,7 @@ def full_check_decaf(win_slide=5, win_size=1024, blob_name='fc6_cudanet_out'):
     from decaf.scripts.imagenet import DecafNet
     net = DecafNet()
     clf = joblib.load("420_decaf/classifier_decaf.pkl")
-    g_raster = gdal.Open('test.tif') # test.tif
+    g_raster = gdal.Open('20-21-22-part2.tif') # test.tif
     # plt.axis('off')
     # f, axarr = plt.subplots(n, n)
     result = {}
