@@ -1,16 +1,34 @@
 # -*- coding: cp936 -*-
 """
 Created on Fri Oct 17 19:51:20 2014
-ç¨‹åºé€»è¾‘ï¼š
-å¯é€‰ï¼šæ·»åŠ å­—æ®µæ ‡è¯†æ˜¯å¦ä¸ºæ»‘å¡ç¾å®³ï¼›
-1ã€éåŽ†æ¯ä¸€ä¸ªregionï¼›å–å¤–æŽ¥çŸ©å½¢
-2ã€èŽ·å–offsetï¼Œè®¡ç®—é•¿å®½ï¼Œå–é•¿è¾¹ï¼›
-3ã€ä»¥å·¦ä¸Šè§’ä¸ºèµ·ç‚¹ï¼Œå–æ­£æ–¹å½¢å›¾åƒï¼›ï¼ˆä¸€ç§æ–¹æ³•æ˜¯ä¸å…³å¿ƒæ˜¯å¦å˜å½¢ä¹‹é—´ç¼©æ”¾åˆ°256*256ï¼‰
-4ã€åˆ†ç±»ï¼Œä¸ºå­—æ®µèµ‹å€¼
+³ÌÐòÂß¼­£º
+¿ÉÑ¡£ºÌí¼Ó×Ö¶Î±êÊ¶ÊÇ·ñÎª»¬ÆÂÔÖº¦£»
+1¡¢±éÀúÃ¿Ò»¸öregion£»È¡Íâ½Ó¾ØÐÎ
+2¡¢»ñÈ¡offset£¬¼ÆËã³¤¿í£¬È¡³¤±ß£»
+3¡¢ÒÔ×óÉÏ½ÇÎªÆðµã£¬È¡Õý·½ÐÎÍ¼Ïñ£»£¨Ò»ÖÖ·½·¨ÊÇ²»¹ØÐÄÊÇ·ñ±äÐÎÖ®¼äËõ·Åµ½256*256£©
+4¡¢·ÖÀà£¬Îª×Ö¶Î¸³Öµ
+
+×¢ÒâµÄÎÊÌâ£º
+±£Ö¤Ñù±¾µÄ²É¼¯µÄÕýÈ·ÐÔ; xyÖá²»Òª¸ã´íÁË; Ñù±¾ÕýÈ·
 @author: shuaiyi
 """
+import warnings
+#warnings.filterwarnings("ignore", category=DeprecationWarning) 
+#×Ô¶¨Òå¾¯¸æ´¦Àíº¯Êý£¬½«ËùÓÐ¾¯¸æÆÁ±Îµô
+def customwarn(message, category, filename, lineno, file=None, line=None):
+    pass
 
-import sys
+warnings.showwarning = customwarn
+
+import os, sys
+import cv2 #Ê¹ÓÃcv2µÄresize£¬ÊµÏÖÍ¼ÏñµÄËõ·Å
+import skimage.io as io #¶ÁÐ´Í¼Ïñ
+from sklearn.externals import joblib
+
+import progressbar # ½ø¶ÈÌõ
+#import logging
+#logging.getLogger()
+
 
 try:
     from osgeo import ogr, gdal
@@ -29,19 +47,104 @@ def offset(ds, x, y):
     xOffset = int((x - xOrigin) / pixelWidth)
     yOffset = int((y - yOrigin) / pixelHeight)
     return (xOffset, yOffset)
-    
-# reading shp file
-driver = ogr.GetDriverByName('ESRI Shapefile')
 
-fn = "D:/DEM/disaster-project/trunk/420_decaf/segmentation/bbox.shp"
-dataSource = driver.Open(fn, 0)
-if dataSource is None:
+def is_exist(Layer,field_name):
+    layerDefinition = Layer.GetLayerDefn()
+    for i in range(layerDefinition.GetFieldCount()):
+        if layerDefinition.GetFieldDefn(i).GetName() == field_name:
+            return True
+    return False
+
+def getRegion(r, f): # raster feature
+    geo = f.GetGeometryRef()
+    lu_x, rd_x, rd_y, lu_y = geo.GetEnvelope()
+    lu_offset_x, lu_offset_y = offset(r, lu_x, lu_y)
+    rd_offset_x, rd_offset_y = offset(r, rd_x, rd_y)
+    w = rd_offset_x-lu_offset_x
+    h = rd_offset_y-lu_offset_y
+
+    #print lu_offset_x ,lu_offset_y , w, h
+    # Ò»Ð¡Æ¬£¬»¬ÆÂµÄÌØÕ÷²»Ã÷ÏÔ£»ÐèÒªÊÊµ±ÏòÍâÀ©Õ¹
+    # ³ýÈ¥±ßÔµÍâ£¬¶¼ÏòÍâÀ©Õ¹50pixel
+    expand_size = 50
+    if lu_offset_x - expand_size >= 0 and lu_offset_x + w + expand_size <= r.RasterXSize \
+    and lu_offset_y - expand_size >= 0 and lu_offset_y + h + expand_size <= r.RasterYSize:
+        lu_offset_x = lu_offset_x - expand_size
+        lu_offset_y = lu_offset_y - expand_size
+        w = w + 2*expand_size
+        h = h + 2*expand_size
+    img = r.ReadAsArray(lu_offset_x ,lu_offset_y , w, h)
+    img = img.swapaxes(0,2).swapaxes(0,1)
+    io.imsave("420_decaf/slide_target/%s_%s_%s_%s.png" % \
+             (lu_offset_x, lu_offset_y, w, h), img)
+    tmp = cv2.imread("420_decaf/slide_target/%s_%s_%s_%s.png" % \
+                    (lu_offset_x, lu_offset_y, w, h))
+    return cv2.resize(tmp, (256,256), interpolation=cv2.INTER_LINEAR)
+    #return resize(img, (256,256))
+
+# ¼ÓÔØ decaf ºÍ classifier
+from decaf.scripts.imagenet import DecafNet
+net = DecafNet()
+clf = joblib.load("420_decaf/classifier_decaf.pkl")
+blob_name='fc6_cudanet_out'
+
+# ¶ÁÈ¡Õ¤¸ñÍ¼Ïñ
+g_raster = gdal.Open('20-21-22-part2.tif') # Óë·Ö¸îÎÄ¼þ¶ÔÓ¦µÄÔ­Ê¼Õ¤¸ñ
+    
+# ¶ÁÈ¡·Ö¸î½á¹û shp ÎÄ¼þ
+driver = ogr.GetDriverByName('ESRI Shapefile')
+os.chdir("./420_decaf/segmentation")
+fn = "20-21-22-part2.shp"
+dataSource = driver.Open(fn, 1) # ÐèÒª¶ÁÐ´
+os.chdir(os.path.dirname(__file__))
+if dataSource is None: 
     print 'Could not open ' + fn
     sys.exit(1) #exit with an error code
 
-layer = dataSource.GetLayer(0)    
+layer = dataSource.GetLayer(0)   
+
+# Ìí¼Ó×Ö¶Î slide 
+# Èç¹ûÒÑ¾­´æÔÚ¾Í²»ÔÙÌí¼Ó
+if not is_exist(layer, "slide"):
+    fieldDefn = ogr.FieldDefn('slide', ogr.OFTInteger)
+    layer.CreateField(fieldDefn)
+
 numFeatures = layer.GetFeatureCount()
-print 'Feature count:', numFeatures
+print 'Total region count:', numFeatures
+
+#test
+img = None
+TEST = False
+if TEST == True:
+    feature = layer.GetNextFeature()
+    img = getRegion(g_raster, feature)
+    net.classify(img, True)
+    tmp = net.feature(blob_name) #ÓëÑµÁ·Ê±ºò±£³ÖÒ»ÖÂ
+    is_slide = clf.predict(tmp)
+    feature.SetField("slide", is_slide[0])    
+else:
+    # loop through the regions and predict them
+    pbar = progressbar.ProgressBar(maxval=numFeatures).start()
+    
+    cnt = 0
+    feature = layer.GetNextFeature()
+    while feature:
+        # »ñÈ¡¶ÔÓ¦µÄÍ¼ÏñÑù±¾
+        img = getRegion(g_raster, feature)
+        
+        #imshow(img)
+        #raw_input()
+        
+        net.classify(img, True)
+        tmp = net.feature(blob_name) #ÓëÑµÁ·Ê±ºò±£³ÖÒ»ÖÂ
+        is_slide = clf.predict(tmp)
+        feature.SetField("slide", is_slide[0])
+        layer.SetFeature(feature) # ÕâÒ»²½¿ÉÒÔÓÃÓÚ±£´æÐÞ¸Ä
+        pbar.update(cnt+1)
+        cnt = cnt + 1
+        feature = layer.GetNextFeature()
+            
+    pbar.finish()
 
 #f = layer.GetFeature(0)
 #geo = f.GetGeometryRef()
@@ -50,14 +153,7 @@ print 'Feature count:', numFeatures
 #b = geo.Boundary()
 #b.GetPoints()
 
-# loop through the features and count them
-cnt = 0
-feature = layer.GetNextFeature()
-while feature:
-    cnt = cnt + 1
-    feature.Destroy()
-    feature = layer.GetNextFeature()
-print 'There are ' + str(cnt) + ' features'
+
 
 # close the data source
-# dataSource.Destroy()
+dataSource.Destroy()
