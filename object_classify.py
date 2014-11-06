@@ -35,6 +35,8 @@ try:
 except:
     import ogr, gdal
 
+"""基于坐标值经纬度，以及栅格的信息，计算影像坐标
+"""
 def offset(ds, x, y):
     # get georeference info
     transform = ds.GetGeoTransform()
@@ -48,6 +50,8 @@ def offset(ds, x, y):
     yOffset = int((y - yOrigin) / pixelHeight)
     return (xOffset, yOffset)
 
+"""判断shp中是否包含某一字段
+"""
 def is_exist(Layer,field_name):
     layerDefinition = Layer.GetLayerDefn()
     for i in range(layerDefinition.GetFieldCount()):
@@ -55,6 +59,8 @@ def is_exist(Layer,field_name):
             return True
     return False
 
+"""得到单个feature所在的raster范围影像数据
+"""
 def getRegion(r, f): # raster feature
     geo = f.GetGeometryRef()
     lu_x, rd_x, rd_y, lu_y = geo.GetEnvelope()
@@ -66,7 +72,7 @@ def getRegion(r, f): # raster feature
     #print lu_offset_x ,lu_offset_y , w, h
     # 一小片，滑坡的特征不明显；需要适当向外扩展
     # 除去边缘外，都向外扩展50pixel
-    expand_size = 50
+    expand_size = 100
     if lu_offset_x - expand_size >= 0 and lu_offset_x + w + expand_size <= r.RasterXSize \
     and lu_offset_y - expand_size >= 0 and lu_offset_y + h + expand_size <= r.RasterYSize:
         lu_offset_x = lu_offset_x - expand_size
@@ -93,7 +99,7 @@ g_raster = gdal.Open('20-21-22-part2.tif') # 与分割文件对应的原始栅格
     
 # 读取分割结果 shp 文件
 driver = ogr.GetDriverByName('ESRI Shapefile')
-os.chdir("./420_decaf/segmentation")
+os.chdir("./420_decaf/segmentation/500")
 fn = "20-21-22-part2.shp"
 dataSource = driver.Open(fn, 1) # 需要读写
 os.chdir(os.path.dirname(__file__))

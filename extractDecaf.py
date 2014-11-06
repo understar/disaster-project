@@ -8,6 +8,7 @@ Created on Tue Oct 14 18:58:10 2014
 import logging, os
 from skimage import io
 import numpy as np
+from sklearn.manifold import TSNE
 
 FEATURES = []
         
@@ -25,6 +26,10 @@ def extractFeatures(sample_list, net, blob_name):
             "feature":feature,\
             "label":record[1]})
     #return net._net.predict()[blob_name]
+
+def visualization():
+    # tsne visualization with picture
+    pass
 
 def writeFeatures_labels(file_name):
     logging.info('Saving the features and labels.')
