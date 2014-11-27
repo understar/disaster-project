@@ -53,22 +53,28 @@ allfeatures = {}
 
 def extractFeatures(num = 500):
     i = 0
+    samples = []
     for root, dirs, files in os.walk("samples"):
         for f in files:
-            if i < num:
-                img_path = ""
-                if f[0:8] == "points99":
-                    img_path = "samples/s_negtive/%s"%f
-                else:
-                    img_path = "samples/s_postive/%s"%f
-                if random() > 0.7:
-                    print img_path
-                    kp, des = surf(img_path)
-                    if kp != None:
-                        allfeatures[img_path] = des
-                        i = i + 1
+            if f[-3:] == 'tif':
+                samples.append(f)
+    
+    np.random.shuffle(samples) # ´òÂÒÊý¾Ý
+    for f in samples:
+        if i < num:
+            img_path = ""
+            if f[0:8] == "points99":
+                img_path = "samples/s_negtive/%s"%f
             else:
-                break
+                img_path = "samples/s_postive/%s"%f
+            if random() > 0.7:
+                print img_path
+                kp, des = surf(img_path)
+                if kp != None:
+                    allfeatures[img_path] = des
+                    i = i + 1
+        else:
+            break
     
     return np.vstack(allfeatures.values())
     
@@ -91,9 +97,11 @@ def build_training_dataset(km):
             if f[0:8] == "points99":
                 img_path = "samples/s_negtive/%s"%f
                 label = 1
-            else:
+            elif f[0:8] == "points00":
                 img_path = "samples/s_postive/%s"%f
                 label = 2
+            else:
+                continue
             
             print img_path
             kp, des = surf(img_path)
@@ -104,7 +112,7 @@ def build_training_dataset(km):
     
 if __name__ == "__main__":
     # cal surf features
-    code_train = True
+    code_train = False
     print "## computing the visual words via k-means"
     print "## extract surf features"
     if code_train:
@@ -112,7 +120,7 @@ if __name__ == "__main__":
         # using k-mean train codebook
         print "## k-means"
         km = KMeans(n_clusters = k_means_n, random_state = 42, 
-                    verbose = 1, n_jobs = 4, tol = 0.01)
+                    verbose = 1, n_jobs = -2, tol = 0.1)
         km.fit(all_f)
         joblib.dump(km, 'dict_k_means.pkl', compress = 3)
         

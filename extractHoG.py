@@ -38,8 +38,8 @@ def main():
     neg = np.vstack(neg_results)
     pos = np.vstack(pos_results)
     
-    np.save("POS_HOG.npy", pos)
-    np.save("NEG_HOG.npy", neg)
+    np.save("HoG/POS_HOG.npy", pos)
+    np.save("HoG/NEG_HOG.npy", neg)
     
 if __name__ == "__main__":
     main()

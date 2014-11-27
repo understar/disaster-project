@@ -18,15 +18,15 @@ from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 
 #%% Train target selection
-train_hog = False
+train_hog = True
 train_bow = False
-train_decaf = True
+train_decaf = False
 
 #%% Load traing data
 X = Y = None
 if train_hog: # train_hog
-    X_neg = np.load("NEG_HOG.npy")
-    X_pos = np.load("POS_HOG.npy")
+    X_neg = np.load("HoG/NEG_HOG.npy")
+    X_pos = np.load("HoG/POS_HOG.npy")
     
     Y = np.ones(X_neg.shape[0] + X_pos.shape[0])
     Y[0:X_neg.shape[0]] = 2
@@ -39,7 +39,7 @@ if train_hog: # train_hog
     X = X[index,:]
     Y = Y[index]
 elif train_bow == True: # train_bow
-    X, Y = np.load("train_BoW_x.npy"), np.load("train_BoW_y.npy")
+    X, Y = np.load("BoW/train_BoW_x.npy"), np.load("BoW/train_BoW_y.npy")
     Y = Y.reshape(Y.shape[0])
     index = np.arange(Y.shape[0])
     shuffle(index)
@@ -77,6 +77,9 @@ x_train, x_test, y_train, y_test = train_test_split(X, Y,
 # CV
 # 关于ZCA 什么时候需要使用？
 # zca = ZCA()
+
+# 使用SVC可以获取probability
+
 clf = LinearSVC() #C = 10000, loss='l1', penalty='l2', random_state=42
 
 zca_svm = Pipeline([('clf',clf)]) #('zca',zca)
@@ -85,6 +88,7 @@ parameters = {
     #'zca__bias': (0.01, 0.001, 0.0001),
     'clf__C': (1000, 3000, 5000, 7000, 9000),
     'clf__loss': ('l1', 'l2')
+    #'clf__penalty':('l1', 'l2')
 }
 
 
@@ -92,7 +96,7 @@ parameters = {
 if __name__ == "__main__":
     # step 1: cv (cross validation_ grid search)
     # step 2: train
-    gridCV = GridSearchCV(zca_svm, parameters,n_jobs=16,verbose=True)
+    gridCV = GridSearchCV(zca_svm, parameters,n_jobs=4,verbose=True)
     print "****************Grid Search******************************"
     gridCV.fit(X,Y)
     
@@ -107,4 +111,4 @@ if __name__ == "__main__":
     print cm
     
     print "*********************Save*******************************"
-    joblib.dump(best, "420_decaf/classifier_decaf.pkl", compress=3)
+    joblib.dump(best, "420_decaf/classifier.pkl", compress=3)
