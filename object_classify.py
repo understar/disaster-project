@@ -102,22 +102,23 @@ def getRegion(r, f): # raster feature
     #print img.dtype
     #plt.figure()
     #plt.imshow(img)
-    
-    return img_as_ubyte(resize(img, (256,256))) # resize 后是float64
-    ''' 保存检测过程图像
-    io.imsave("420_decaf/slide_target/%s_%s_%s_%s.png" % \
-             (lu_offset_x, lu_offset_y, w, h), img)
-    tmp = cv2.imread("420_decaf/slide_target/%s_%s_%s_%s.png" % \
-                    (lu_offset_x, lu_offset_y, w, h))
-    
-    return cv2.resize(img, (256,256), interpolation=cv2.INTER_LINEAR)
-    #return resize(img, (256,256))
-    '''
+    try:
+        return img_as_ubyte(resize(img, (256,256), mode='wrap')) # resize 后是float64
+    except:
+        #保存检测过程图像
+        io.imsave("420_decaf/tmp/%s_%s_%s_%s.png" % \
+                 (lu_offset_x, lu_offset_y, w, h), img)
+        tmp = cv2.imread("420_decaf/tmp/%s_%s_%s_%s.png" % \
+                        (lu_offset_x, lu_offset_y, w, h))
+        
+        return cv2.resize(img, (256,256), interpolation=cv2.INTER_LINEAR)
+        #return resize(img, (256,256))
+
 
 # 加载 decaf 和 classifier
 from decaf.scripts.imagenet import DecafNet
 net = DecafNet()
-clf = joblib.load("420_decaf/classifier.pkl")
+clf = joblib.load("420_decaf/classifier_svc.pkl")
 blob_name='fc6_cudanet_out'
 
 
@@ -149,6 +150,10 @@ for folder in segmentation_folder:
     # 如果已经存在就不再添加
     if not is_exist(layer, "slide"):
         fieldDefn = ogr.FieldDefn('slide', ogr.OFTInteger)
+        layer.CreateField(fieldDefn)
+        
+    if not is_exist(layer, "proba"):
+        fieldDefn = ogr.FieldDefn('proba', ogr.OFTReal)
         layer.CreateField(fieldDefn)
     
     numFeatures = layer.GetFeatureCount()
@@ -186,7 +191,9 @@ for folder in segmentation_folder:
             net.classify(img, True)
             tmp = net.feature(blob_name) #与训练时候保持一致
             is_slide = clf.predict(tmp)
+            slide_proba = clf.predict_proba(tmp)
             feature.SetField("slide", is_slide[0])
+            feature.SetField("proba", slide_proba[0][1])
             layer.SetFeature(feature) # 这一步可以用于保存修改
             pbar.update(cnt+1)
             cnt = cnt + 1
